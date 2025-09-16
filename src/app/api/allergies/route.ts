@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { apiClient } from '@/lib/apiClient';
 
+const RESOURCE = 'AllergyIntolerance';
+
 export async function GET(req: NextRequest) {
-  const { search } = new URL(req.url);
+  const { search, searchParams } = new URL(req.url);
+
   try {
-    const data = await apiClient('AllergyIntolerance', search);
+    let data;
+
+    if(searchParams.toString()) {
+      data = await apiClient(RESOURCE, search);
+    } 
+    else {
+      data = await apiClient(RESOURCE, '?_count=10');
+    }
+
     return NextResponse.json(data);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } 
+  catch (err: any) {
+    const message = err?.message || 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
