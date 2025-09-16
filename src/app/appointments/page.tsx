@@ -1,28 +1,40 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import ResourceTable from '@/components/ResourceTable';
 import SearchBar from '@/components/SearchBar';
 
 export default function AppointmentsPage() {
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchAppointments = async (query?: string) => {
-    let url = '/api/appointments';
-    if (query) url += `?date=${query}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setAppointments(data.entry ? data.entry.map((e: any) => e.resource) : []);
+  const fetchData = async (query?: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/appointments${query ? `?search=${query}` : ''}`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+    } catch {
+      setData([]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchAppointments();
+    fetchData();
   }, []);
 
   return (
-    <div>
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Appointments</h1>
-      <SearchBar onSearch={fetchAppointments} />
-      <ResourceTable data={appointments} />
+      <SearchBar onSearch={fetchData} />
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <ResourceTable
+          data={data}
+          fields={['id', 'status', 'description', 'start', 'end', 'patient', 'provider']}
+        />
+      )}
     </div>
   );
 }

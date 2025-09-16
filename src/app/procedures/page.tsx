@@ -1,28 +1,40 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import ResourceTable from '@/components/ResourceTable';
 import SearchBar from '@/components/SearchBar';
 
 export default function ProceduresPage() {
-  const [procedures, setProcedures] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchProcedures = async (query?: string) => {
-    let url = '/api/procedures';
-    if (query) url += `?patient=${query}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setProcedures(data.entry ? data.entry.map((e: any) => e.resource) : []);
+  const fetchData = async (query?: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/procedures${query ? `?search=${query}` : ''}`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+    } catch {
+      setData([]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchProcedures();
+    fetchData();
   }, []);
 
   return (
-    <div>
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Procedures</h1>
-      <SearchBar onSearch={fetchProcedures} />
-      <ResourceTable data={procedures} />
+      <SearchBar onSearch={fetchData} />
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <ResourceTable
+          data={data}
+          fields={['id', 'status', 'code', 'performed']}
+        />
+      )}
     </div>
   );
 }

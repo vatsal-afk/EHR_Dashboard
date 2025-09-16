@@ -1,25 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { apiClient } from '@/lib/apiClient';
-
-const RESOURCE = 'Patient';
+import { NextRequest, NextResponse } from "next/server";
+import { apiClient } from "@/lib/apiClient";
+import { normalizePatient } from "@/lib/normalizers";
 
 export async function GET(req: NextRequest) {
-  const { search, searchParams } = new URL(req.url);
+  const { searchParams } = new URL(req.url);
+  const name = searchParams.get("name") || "";
 
   try {
-    let data;
+    const data = await apiClient("Patient", name ? `?name=${name}` : "");
+    const patients = Array.isArray(data.entry)
+      ? data.entry.map((e: any) => normalizePatient(e.resource))
+      : [];
 
-    if(searchParams.toString()) {
-      data = await apiClient(RESOURCE, search);
-    } 
-    else {
-      data = await apiClient(RESOURCE, '?_count=10');
-    }
-
-    return NextResponse.json(data);
-  } 
-  catch (err: any) {
-    const message = err?.message || 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(patients);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

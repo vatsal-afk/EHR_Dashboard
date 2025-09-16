@@ -1,28 +1,40 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import ResourceTable from '@/components/ResourceTable';
 import SearchBar from '@/components/SearchBar';
 
 export default function AllergiesPage() {
-  const [allergies, setAllergies] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchAllergies = async (query?: string) => {
-    let url = '/api/allergies';
-    if (query) url += `?patient=${query}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setAllergies(data.entry ? data.entry.map((e: any) => e.resource) : []);
+  const fetchData = async (query?: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/allergies${query ? `?search=${query}` : ''}`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+    } catch {
+      setData([]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchAllergies();
+    fetchData();
   }, []);
 
   return (
-    <div>
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Allergies</h1>
-      <SearchBar onSearch={fetchAllergies} />
-      <ResourceTable data={allergies} />
+      <SearchBar onSearch={fetchData} />
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <ResourceTable
+          data={data}
+          fields={['id', 'code', 'status', 'criticality', 'patient']}
+        />
+      )}
     </div>
   );
 }

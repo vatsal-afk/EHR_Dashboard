@@ -1,28 +1,40 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import ResourceTable from '@/components/ResourceTable';
 import SearchBar from '@/components/SearchBar';
 
 export default function ObservationsPage() {
-  const [observations, setObservations] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchObservations = async (query?: string) => {
-    let url = '/api/observations';
-    if (query) url += `?patient=${query}&category=vital-signs`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setObservations(data.entry ? data.entry.map((e: any) => e.resource) : []);
+  const fetchData = async (query?: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/observations${query ? `?search=${query}` : ''}`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+    } catch {
+      setData([]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchObservations();
+    fetchData();
   }, []);
 
   return (
-    <div>
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Observations</h1>
-      <SearchBar onSearch={fetchObservations} />
-      <ResourceTable data={observations} />
+      <SearchBar onSearch={fetchData} />
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <ResourceTable
+          data={data}
+          fields={['id', 'status', 'code', 'value', 'date']}
+        />
+      )}
     </div>
   );
 }

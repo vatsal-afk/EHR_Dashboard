@@ -1,28 +1,40 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import ResourceTable from '@/components/ResourceTable';
 import SearchBar from '@/components/SearchBar';
 
 export default function PractitionersPage() {
-  const [practitioners, setPractitioners] = useState<any[]>([]);
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchPractitioners = async (query?: string) => {
-    let url = '/api/practitioners';
-    if (query) url += `?name=${query}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    setPractitioners(data.entry ? data.entry.map((e: any) => e.resource) : []);
+  const fetchData = async (query?: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/practitioners${query ? `?search=${query}` : ''}`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+    } catch {
+      setData([]);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
-    fetchPractitioners();
+    fetchData();
   }, []);
 
   return (
-    <div>
+    <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Practitioners</h1>
-      <SearchBar onSearch={fetchPractitioners} />
-      <ResourceTable data={practitioners} />
+      <SearchBar onSearch={fetchData} />
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <ResourceTable
+          data={data}
+          fields={['id', 'name', 'identifiers']}
+        />
+      )}
     </div>
   );
 }
