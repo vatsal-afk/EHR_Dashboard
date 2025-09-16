@@ -4,7 +4,7 @@ import { apiClient } from '@/lib/apiClient';
 export async function GET(req: NextRequest) {
   const { search } = new URL(req.url);
   try {
-    const data = await apiClient('Patient', search);
+    const data = await apiClient('DiagnosticReport', search);
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

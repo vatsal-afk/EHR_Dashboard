@@ -5,4 +5,3 @@ export interface Patient {
   gender?: string;
   birthDate?: string;
 }
-// Add more FHIR types as needed
