@@ -1,4 +1,3 @@
-// lib/apiClient.ts
 export async function apiClient(
   resource: string,
   search: string = '',
@@ -6,12 +5,11 @@ export async function apiClient(
   body?: any
 ) {
   const base = process.env.FHIR_BASE_URL;
-  if (!base) throw new Error('ORACLE_BASE_URL not defined in env');
-
   const endpoint = `${base}/${resource}${search}`;
+
   const headers: HeadersInit = {
-    'Accept': 'application/fhir+json',  
     'Content-Type': 'application/fhir+json',
+    Accept: 'application/fhir+json',
   };
 
   const res = await fetch(endpoint, {
@@ -21,7 +19,8 @@ export async function apiClient(
   });
 
   if (!res.ok) {
-    throw new Error(`FHIR error: ${res.status} ${res.statusText}`);
+    const err = await res.text();
+    throw new Error(`FHIR error: ${res.status} ${res.statusText} - ${err}`);
   }
 
   return res.json();
