@@ -1,13 +1,15 @@
-"use client";
-import { useState, useEffect } from "react";
-import ResourceTable from "@/components/ResourceTable";
-import SearchBar from "@/components/SearchBar";
+'use client';
+import { useState, useEffect } from 'react';
+import ResourceTable from '@/components/ResourceTable';
+import SearchBar from '@/components/SearchBar';
+import { useRouter } from 'next/navigation';
 
 export default function PatientsPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  const fetchPatients = async (query: string = "") => {
+  const fetchPatients = async (query: string = '') => {
     setLoading(true);
     try {
       const res = await fetch(`/api/patients${query}`);
@@ -28,6 +30,10 @@ export default function PatientsPage() {
     await fetchPatients(`?name=${encodeURIComponent(name)}`);
   };
 
+  const handleRowClick = (patientId: string) => {
+    router.push(`/patients/${patientId}`);
+  };
+
   return (
     <div className="p-6 flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Patients</h1>
@@ -37,7 +43,8 @@ export default function PatientsPage() {
       ) : (
         <ResourceTable
           data={data}
-          fields={["id", "name", "gender", "birthDate"]}
+          fields={['id', 'name', 'gender', 'birthDate']}
+          onRowClick={handleRowClick}
         />
       )}
     </div>

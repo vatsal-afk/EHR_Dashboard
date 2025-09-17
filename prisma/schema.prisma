@@ -1,0 +1,116 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Patient {
+  id                String             @id @unique
+  name              String
+  gender            String?
+  birthDate         String?
+  allergies         Allergy[]
+  appointments      Appointment[]
+  conditions        Condition[]
+  encounters        Encounter[]
+  immunizations     Immunization[]
+  medications       Medication[]
+  observations      Observation[]
+  diagnosticReports DiagnosticReport[]
+  procedures        Procedure[]
+}
+
+model Allergy {
+  id          String    @id @unique
+  code        String?
+  status      String?
+  criticality String?
+  patient     Patient?  @relation(fields: [patientId], references: [id])
+  patientId   String?
+}
+
+model Appointment {
+  id          String    @id @unique
+  status      String?
+  description String?
+  start       String?
+  end         String?
+  patient     Patient?  @relation(fields: [patientId], references: [id])
+  patientId   String?
+  provider    String?
+}
+
+model Condition {
+  id        String    @id @unique
+  code      String?
+  patient   Patient?  @relation(fields: [patientId], references: [id])
+  patientId String?
+}
+
+model Encounter {
+  id        String    @id @unique
+  status    String?
+  class     String?
+  subject   String?
+  start     String?
+  end       String?
+  patient   Patient?  @relation(fields: [patientId], references: [id])
+  patientId String?
+}
+
+model Immunization {
+  id            String    @id @unique
+  status        String?
+  vaccine       String?
+  patient       Patient?  @relation(fields: [patientId], references: [id])
+  patientId     String?
+  primarySource Boolean?
+}
+
+model Medication {
+  id        String  @id @unique
+  code      String?
+  status    String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+  patientId String?
+}
+
+model Observation {
+  id        String    @id @unique
+  status    String?
+  code      String?
+  value     String?
+  date      String?
+  patient   Patient? @relation(fields: [patientId], references: [id])
+  patientId String?
+}
+
+model DiagnosticReport {
+  id            String    @id @unique
+  status        String?
+  code          String?
+  subject       String?
+  effectiveDate String?
+  issued        String?
+  patient       Patient? @relation(fields: [patientId], references: [id])
+  patientId     String?
+}
+
+model Practitioner {
+  id          String  @id @unique
+  name        String?
+  identifiers String?
+}
+
+model Procedure {
+  id        String    @id @unique
+  status    String?
+  code      String?
+  performed String?
+  patient   Patient?  @relation(fields: [patientId], references: [id])
+  patientId String?
+}
