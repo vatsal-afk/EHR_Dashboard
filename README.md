@@ -21,11 +21,12 @@ This is a web-based Electronic Health Record (EHR) dashboard built with Next.js,
 
 1.  Clone the repository and navigate to the project directory:
     ```
-    git clone <repository-url>
+    git clone <https://github.com/vatsal-afk/EHR_Dashboard>
     cd ehr_dashboard
     ```
 
 2.  Install the dependencies:
+
     ```
     npm install
     ```
@@ -35,10 +36,8 @@ This is a web-based Electronic Health Record (EHR) dashboard built with Next.js,
 Create a `.env` file in the root of your project and add the following environment variables:
 
 ```env
-# Prisma database connection string
 DATABASE_URL="file:./dev.db"
 
-# FHIR API Base URL for external data
 FHIR_BASE_URL="[https://hapi.fhir.org/baseR4](https://hapi.fhir.org/baseR4)"
 ```
 
