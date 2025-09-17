@@ -13,7 +13,6 @@ const renderCellContent = (value: any, field: string) => {
   if (value === null || value === undefined) return "N/A"
 
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-
     if (field.toLowerCase().includes("date") || field.toLowerCase().includes("time")) {
       const d = new Date(value as string | number)
       if (!isNaN(d.getTime())) {
@@ -83,6 +82,7 @@ const renderCellContent = (value: any, field: string) => {
       }).join(", ")
     }
     
+    
     if (value.family || value.given) {
       const given = Array.isArray(value.given) ? value.given.join(" ") : ""
       const family = value.family || ""
@@ -150,16 +150,16 @@ const renderCellContent = (value: any, field: string) => {
 }
 
 const API_ENDPOINTS = {
-  patients: "https://hapi.fhir.org/baseR4/Patient",
-  observations: "https://hapi.fhir.org/baseR4/Observation", 
-  allergies: "https://hapi.fhir.org/baseR4/AllergyIntolerance",
-  appointments: "https://hapi.fhir.org/baseR4/Appointment",
-  conditions: "https://hapi.fhir.org/baseR4/Condition",
-  encounters: "https://hapi.fhir.org/baseR4/Encounter",
-  immunizations: "https://hapi.fhir.org/baseR4/Immunization",
-  medications: "https://hapi.fhir.org/baseR4/MedicationRequest",
-  practitioners: "https://hapi.fhir.org/baseR4/Practitioner",
-  procedures: "https://hapi.fhir.org/baseR4/Procedure"
+  patients: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Patient`,
+  observations: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Observation`, 
+  allergies: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/AllergyIntolerance`,
+  appointments: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Appointment`,
+  conditions: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Condition`,
+  encounters: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Encounter`,
+  immunizations: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Immunization`,
+  medications: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/MedicationRequest`,
+  practitioners: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Practitioner`,
+  procedures: `${process.env.NEXT_PUBLIC_FHIR_BASE_URL}/Procedure`
 }
 
 const FIELD_CONFIGS = {
@@ -275,126 +275,203 @@ export default function DashboardPage() {
   const currentFields = FIELD_CONFIGS[selectedEndpoint as keyof typeof FIELD_CONFIGS] || []
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">FHIR Dashboard</h2>
-        <Button onClick={handleRefresh}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Controls */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Explorer</CardTitle>
-          <CardDescription>Browse and search FHIR resources</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4 mb-4">
-            <Select value={selectedEndpoint} onValueChange={setSelectedEndpoint}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Select resource type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="patients">Patients</SelectItem>
-                <SelectItem value="observations">Observations</SelectItem>
-                <SelectItem value="allergies">Allergies</SelectItem>
-                <SelectItem value="appointments">Appointments</SelectItem>
-                <SelectItem value="conditions">Conditions</SelectItem>
-                <SelectItem value="encounters">Encounters</SelectItem>
-                <SelectItem value="immunizations">Immunizations</SelectItem>
-                <SelectItem value="medications">Medications</SelectItem>
-                <SelectItem value="practitioners">Practitioners</SelectItem>
-                <SelectItem value="procedures">Procedures</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {selectedEndpoint === 'patients' && (
-              <div className="flex gap-2 flex-1">
-                <Input
-                  placeholder="Search patients by name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <Button onClick={handleSearch} size="sm">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+      <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-8 text-white shadow-xl">
+          <div className="absolute inset-0 bg-black/20"></div>
+          <div className="relative flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold tracking-tight">Healthcare Dashboard</h1>
+              <p className="mt-2 text-blue-100 text-lg">Comprehensive FHIR Data Management System</p>
+            </div>
+            <Button 
+              onClick={handleRefresh}
+              className="bg-white/20 hover:bg-white/30 border-white/30 text-white backdrop-blur-sm transition-all duration-200"
+              size="lg"
+            >
+              <RefreshCw className="mr-2 h-5 w-5" />
+              Refresh Data
+            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="capitalize">{selectedEndpoint}</CardTitle>
-          <CardDescription>
-            {loading ? "Loading..." : `Showing ${tableData.length} ${selectedEndpoint}`}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading {selectedEndpoint}...</span>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {stats.map((stat, index) => {
+            const gradients = [
+              "from-emerald-500 to-teal-600",
+              "from-blue-500 to-cyan-600", 
+              "from-purple-500 to-pink-600",
+              "from-orange-500 to-red-600"
+            ]
+            return (
+              <Card key={stat.title} className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+                <div className={`absolute inset-0 bg-gradient-to-br ${gradients[index]} opacity-10`}></div>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                  <CardTitle className="text-sm font-semibold text-slate-600 dark:text-slate-300">{stat.title}</CardTitle>
+                  <div className={`p-2 rounded-lg bg-gradient-to-br ${gradients[index]}`}>
+                    <stat.icon className="h-5 w-5 text-white" />
+                  </div>
+                </CardHeader>
+                <CardContent className="relative">
+                  <div className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
+                    {stat.value}
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{stat.description}</p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        <Card className="border-0 shadow-lg bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 rounded-t-lg border-b">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-blue-500 rounded-lg">
+                <Search className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold">Resource Explorer</CardTitle>
+                <CardDescription className="text-slate-600 dark:text-slate-300">
+                  Browse and search healthcare resources across the FHIR ecosystem
+                </CardDescription>
+              </div>
             </div>
-          ) : tableData.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {currentFields.map((field) => (
-                      <TableHead key={field} className="capitalize">
-                        {field.replace(/([A-Z])/g, ' $1').trim()}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tableData.map((item, idx) => (
-                    <TableRow key={item.id || idx}>
-                      {currentFields.map((field) => (
-                        <TableCell key={field} className="max-w-sm text-sm">
-                          <div className="truncate" title={renderCellContent(item[field], field)}>
-                            {renderCellContent(item[field], field)}
-                          </div>
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No {selectedEndpoint} found.</p>
-              {selectedEndpoint === 'patients' && searchQuery && (
-                <p className="text-sm mt-2">Try a different search term or clear the search.</p>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Select value={selectedEndpoint} onValueChange={setSelectedEndpoint}>
+                <SelectTrigger className="w-full sm:w-[220px] border-2 border-slate-200 dark:border-slate-600 rounded-xl shadow-sm hover:border-blue-300 transition-colors">
+                  <SelectValue placeholder="Select resource type" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-0 shadow-xl">
+                  <SelectItem value="patients" className="rounded-lg">👥 Patients</SelectItem>
+                  <SelectItem value="observations" className="rounded-lg">📊 Observations</SelectItem>
+                  <SelectItem value="allergies" className="rounded-lg">⚠️ Allergies</SelectItem>
+                  <SelectItem value="appointments" className="rounded-lg">📅 Appointments</SelectItem>
+                  <SelectItem value="conditions" className="rounded-lg">🏥 Conditions</SelectItem>
+                  <SelectItem value="encounters" className="rounded-lg">👨‍⚕️ Encounters</SelectItem>
+                  <SelectItem value="immunizations" className="rounded-lg">💉 Immunizations</SelectItem>
+                  <SelectItem value="medications" className="rounded-lg">💊 Medications</SelectItem>
+                  <SelectItem value="practitioners" className="rounded-lg">👨‍⚕️ Practitioners</SelectItem>
+                  <SelectItem value="procedures" className="rounded-lg">🔬 Procedures</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {selectedEndpoint === 'patients' && (
+                <div className="flex gap-3 flex-1">
+                  <Input
+                    placeholder="Search patients by name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    className="border-2 border-slate-200 dark:border-slate-600 rounded-xl shadow-sm hover:border-blue-300 focus:border-blue-500 transition-colors"
+                  />
+                  <Button 
+                    onClick={handleSearch} 
+                    className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl shadow-sm px-6"
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-700 dark:to-slate-800 rounded-t-lg border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                  <FileText className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-bold capitalize">{selectedEndpoint} Records</CardTitle>
+                  <CardDescription className="text-slate-600 dark:text-slate-300">
+                    {loading ? "Loading healthcare data..." : `Displaying ${tableData.length} ${selectedEndpoint} records`}
+                  </CardDescription>
+                </div>
+              </div>
+              {!loading && tableData.length > 0 && (
+                <div className="text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">
+                  {tableData.length} records found
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-full border-4 border-blue-200 dark:border-blue-800"></div>
+                  <div className="absolute top-0 left-0 w-12 h-12 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+                </div>
+                <span className="mt-4 text-slate-600 dark:text-slate-300 font-medium">Loading {selectedEndpoint}...</span>
+                <span className="text-sm text-slate-400 mt-1">Fetching data from FHIR server</span>
+              </div>
+            ) : tableData.length > 0 ? (
+              <div className="overflow-hidden rounded-b-lg">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50 dark:bg-slate-700/50 border-b-2">
+                        {currentFields.map((field, index) => (
+                          <TableHead key={field} className={`font-semibold text-slate-700 dark:text-slate-200 py-4 ${index === 0 ? 'pl-6' : ''}`}>
+                            {field.replace(/([A-Z])/g, ' $1').trim()}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {tableData.map((item, idx) => (
+                        <TableRow 
+                          key={item.id || idx} 
+                          className="hover:bg-blue-50/50 dark:hover:bg-slate-700/30 transition-colors duration-150 border-b border-slate-100 dark:border-slate-700"
+                        >
+                          {currentFields.map((field, fieldIndex) => (
+                            <TableCell key={field} className={`py-4 text-sm ${fieldIndex === 0 ? 'pl-6 font-medium' : ''}`}>
+                              <div 
+                                className="truncate max-w-xs text-slate-700 dark:text-slate-200" 
+                                title={renderCellContent(item[field], field)}
+                              >
+                                {renderCellContent(item[field], field)}
+                              </div>
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 rounded-2xl flex items-center justify-center">
+                  <FileText className="h-10 w-10 text-slate-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-2">
+                  No {selectedEndpoint} found
+                </h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-4">
+                  {selectedEndpoint === 'patients' && searchQuery 
+                    ? "Try adjusting your search criteria or clear the search field." 
+                    : `No ${selectedEndpoint} records are currently available.`
+                  }
+                </p>
+                {selectedEndpoint === 'patients' && searchQuery && (
+                  <Button 
+                    onClick={() => setSearchQuery("")} 
+                    variant="outline" 
+                    className="rounded-xl"
+                  >
+                    Clear Search
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
