@@ -2,164 +2,132 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Calendar, Activity, FileText } from "lucide-react"
+import { Users, Calendar, Activity, FileText, RefreshCw } from "lucide-react"
 import { format, isSameDay, parseISO, formatDistanceToNow } from "date-fns"
+import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-interface Patient {
-  id: string
-  name: string
-  conditions: Array<{ id: string }>
-  diagnosticReports: Array<{ id: string }>
+// This is the combined render function that was provided previously.
+const renderCellContent = (value: any, field: string) => {
+  if (value === null || value === undefined) return "N/A"
+
+  if (typeof value === "object") {
+    if (Array.isArray(value)) {
+      return value.map((item) => item.display || item.text || item.code || JSON.stringify(item)).join(", ")
+    }
+    if (value.coding) {
+      const firstCoding = value.coding[0]
+      return value.text || firstCoding?.display || firstCoding?.code || "N/A"
+    }
+    if (value.value !== undefined) return `${value.value} ${value.unit || ""}`.trim()
+    if (value.display) return value.display
+    if (value.text) return value.text
+    return JSON.stringify(value)
+  }
+
+  if (field.toLowerCase().includes("date") || field.toLowerCase().includes("time")) {
+    const d = new Date(value)
+    if (!isNaN(d.getTime())) return d.toLocaleString()
+  }
+
+  return String(value)
 }
 
-interface Appointment {
-  id: string
-  status: string
-  description: string
-  start: string
-  provider: string
-  patient: { name: string }
-}
-
-interface RecentActivity {
-  id: string
-  type: string
-  patientName: string
-  timeAgo: string
-  color: string
-}
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState([
-    {
-      title: "Total Patients",
-      value: "...",
-      description: "...",
-      icon: Users,
-    },
-    {
-      title: "Appointments Today",
-      value: "...",
-      description: "...",
-      icon: Calendar,
-    },
-    {
-      title: "Active Cases",
-      value: "...",
-      description: "...",
-      icon: Activity,
-    },
-    {
-      title: "Reports Generated",
-      value: "...",
-      description: "...",
-      icon: FileText,
-    },
-  ])
-  const [appointments, setAppointments] = useState<Appointment[]>([])
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [stats, setStats] = useState<any[]>([])
+  const [appointments, setAppointments] = useState<any[]>([])
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [fhirReports, setFhirReports] = useState<any[]>([])
+  const [fhirObservations, setFhirObservations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      setLoading(true)
       try {
-        const [patientsResponse, appointmentsResponse, reportsResponse, encountersResponse] = await Promise.all([
-          fetch("/api/patients"),
-          fetch(`/api/appointments`),
-          fetch("/api/diagnostic-reports?patientId=all"),
-          fetch("/api/encounters"),
+        const [patientsRes, appointmentsRes, reportsRes, encountersRes, fhirReportsRes, fhirObsRes] =
+          await Promise.all([
+            fetch("/api/patients"),
+            fetch("/api/appointments"),
+            fetch("/api/diagnosticreports"),
+            fetch("/api/encounters"),
+            fetch("https://hapi.fhir.org/baseR4/DiagnosticReport?_count=5"),
+            fetch("https://hapi.fhir.org/baseR4/Observation?_count=5"),
+          ])
+
+        const [patients, appointmentsData, reports, encounters, fhirReportsJson, fhirObsJson] = await Promise.all([
+          patientsRes.json(),
+          appointmentsRes.json(),
+          reportsRes.json(),
+          encountersRes.json(),
+          fhirReportsRes.json(),
+          fhirObsRes.json(),
         ])
-
-        const [patientsData, allAppointmentsData, reportsData, encountersData] = await Promise.all([
-          patientsResponse.json(),
-          appointmentsResponse.json(),
-          reportsResponse.json(),
-          encountersResponse.json(),
-        ])
-
-        const totalPatients = patientsData.length
-        let activeCases = 0
-        patientsData.forEach((patient: any) => {
-          activeCases += patient.conditions.length
-        })
-
-        const today = new Date()
-        const appointmentsToday = allAppointmentsData.filter((apt: any) =>
-          apt.start ? isSameDay(parseISO(apt.start), today) : false,
-        )
 
         setStats([
           {
             title: "Total Patients",
-            value: totalPatients.toString(),
+            value: Array.isArray(patients) ? patients.length.toString() : "0",
             description: "All registered patients",
             icon: Users,
           },
           {
             title: "Appointments Today",
-            value: appointmentsToday.length.toString(),
-            description: `${appointmentsToday.filter((a: any) => a.status === "scheduled").length} pending confirmations`,
+            value: Array.isArray(appointmentsData)
+              ? appointmentsData.filter((a: any) => a.start && isSameDay(parseISO(a.start), new Date())).length.toString()
+              : "0",
+            description: "Today's booked appointments",
             icon: Calendar,
           },
           {
             title: "Active Cases",
-            value: activeCases.toString(),
-            description: "Total medical conditions across patients",
+            value: Array.isArray(encounters) ? encounters.length.toString() : "0",
+            description: "Ongoing encounters",
             icon: Activity,
           },
           {
             title: "Reports Generated",
-            value: reportsData.length.toString(),
+            value: Array.isArray(reports) ? reports.length.toString() : "0",
             description: "Total diagnostic reports",
             icon: FileText,
           },
         ])
 
-        setAppointments(appointmentsToday)
+        setAppointments(Array.isArray(appointmentsData) ? appointmentsData : [])
+        setRecentActivity(Array.isArray(reports) ? reports.slice(0, 5) : [])
 
-        const allActivities = [
-          ...patientsData.map((p: any) => ({
-            id: p.id,
-            type: "New patient registered",
-            patientName: p.name,
-            time: new Date(), // Using current time as a placeholder since createdAt is not in the model
-            color: "bg-blue-500",
-          })),
-          ...encountersData.map((e: any) => ({
-            id: e.id,
-            type: `Encounter status: ${e.status}`,
-            patientName: e.patient?.name,
-            time: e.start,
-            color: e.status === "finished" ? "bg-green-500" : "bg-orange-500",
-          })),
-          ...reportsData.map((r: any) => ({
-            id: r.id,
-            type: "Lab results available",
-            patientName: r.patient?.name,
-            time: r.issued,
-            color: "bg-orange-500",
-          })),
-        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-
-        setRecentActivity(
-          allActivities.slice(0, 5).map((activity) => ({
-            ...activity,
-            timeAgo: formatDistanceToNow(new Date(activity.time), { addSuffix: true }),
-          })),
-        )
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error)
+        if (fhirReportsJson?.entry) {
+          setFhirReports(fhirReportsJson.entry.map((e: any) => e.resource))
+        }
+        if (fhirObsJson?.entry) {
+          setFhirObservations(fhirObsJson.entry.map((e: any) => e.resource))
+        }
+      } catch (err) {
+        console.error("Dashboard fetch error", err)
+      } finally {
+        setLoading(false)
       }
     }
 
     fetchDashboardData()
-  }, [])
+  }, [refreshTrigger])
+
+  const fhirReportFields = ["id", "status", "code", "subject", "issued"]
+  const fhirObservationFields = ["id", "status", "code", "subject", "valueQuantity", "effectiveDateTime"]
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+        <Button onClick={() => setRefreshTrigger((prev) => prev + 1)}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
+      {/* Stats cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title}>
@@ -175,60 +143,77 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Latest patient interactions and system updates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-4">
-                    <div className={`w-2 h-2 rounded-full ${activity.color}`}></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{activity.type}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.patientName} - {activity.timeAgo}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="py-8 text-center text-muted-foreground">No recent activity</p>
-              )}
+      {/* Diagnostic Reports */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Diagnostic Reports (FHIR API)</CardTitle>
+          <CardDescription>Latest diagnostic reports</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p>Loading reports...</p>
+          ) : fhirReports.length > 0 ? (
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {fhirReportFields.map((field) => (
+                      <TableHead key={field}>{field}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fhirReports.map((report, idx) => (
+                    <TableRow key={idx}>
+                      {fhirReportFields.map((field) => (
+                        <TableCell key={field}>{renderCellContent(report[field], field)}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <p>No diagnostic reports found.</p>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Today's Schedule</CardTitle>
-            <CardDescription>Upcoming appointments and tasks</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {appointments.length > 0 ? (
-                appointments.map((appointment) => (
-                  <div key={appointment.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {appointment.start ? format(new Date(appointment.start), "h:mm a") : "N/A"} -{" "}
-                        {appointment.patient.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{appointment.description}</p>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{appointment.provider}</div>
-                  </div>
-                ))
-              ) : (
-                <p className="py-8 text-center text-muted-foreground">No appointments scheduled for today</p>
-              )}
+      {/* Observations */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Observations (FHIR API)</CardTitle>
+          <CardDescription>Latest clinical observations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p>Loading observations...</p>
+          ) : fhirObservations.length > 0 ? (
+            <div className="overflow-x-auto rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {fhirObservationFields.map((field) => (
+                      <TableHead key={field}>{field}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {fhirObservations.map((obs, idx) => (
+                    <TableRow key={idx}>
+                      {fhirObservationFields.map((field) => (
+                        <TableCell key={field}>{renderCellContent(obs[field], field)}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          ) : (
+            <p>No observations found.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

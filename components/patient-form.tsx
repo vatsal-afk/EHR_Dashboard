@@ -31,7 +31,10 @@ export function PatientForm({ onPatientCreated }: PatientFormProps) {
       const response = await fetch("/api/patients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          birthDate: formData.birthDate ? new Date(formData.birthDate).toISOString() : undefined,
+        }),
       })
 
       if (response.ok) {
