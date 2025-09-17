@@ -14,7 +14,6 @@ export default function ResourceTable({ data, fields }: ResourceTableProps) {
     }
     
     if (typeof value === 'object') {
-      // Handle arrays
       if (Array.isArray(value)) {
         if (value.length === 0) return "";
         return value.map(item => {
