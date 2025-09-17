@@ -2,9 +2,19 @@ type ResourceTableProps = {
   data: any[];
   fields: string[];
   onRowClick?: (id: string) => void;
+  onEdit?: (item: any) => void;
+  onDelete?: (id: string) => void;
+  showActions?: boolean;
 };
 
-export default function ResourceTable({ data, fields, onRowClick }: ResourceTableProps) {
+export default function ResourceTable({ 
+  data, 
+  fields, 
+  onRowClick, 
+  onEdit, 
+  onDelete, 
+  showActions = true 
+}: ResourceTableProps) {
   if (!data || data.length === 0) {
     return <p className="text-gray-500">No records found.</p>;
   }
@@ -83,6 +93,17 @@ export default function ResourceTable({ data, fields, onRowClick }: ResourceTabl
     return String(value);
   };
 
+  const isLocalRecord = (item: any) => {
+    // Check if this is a locally created record (has our generated ID pattern)
+    return item.id && (
+      item.id.startsWith('patient-') || 
+      item.id.startsWith('condition-') || 
+      item.id.startsWith('allergy-') ||
+      item.id.startsWith('appointment-') ||
+      item.id.startsWith('observation-')
+    );
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200">
       <table className="min-w-full text-sm text-left">
@@ -93,26 +114,67 @@ export default function ResourceTable({ data, fields, onRowClick }: ResourceTabl
                 {field}
               </th>
             ))}
-            {onRowClick && <th className="px-4 py-2">Actions</th>}
+            <th className="px-4 py-2 font-medium">Source</th>
+            {showActions && <th className="px-4 py-2">Actions</th>}
           </tr>
         </thead>
         <tbody>
-          {data.map((row, idx) => (
-            <tr key={idx} className="border-t hover:bg-gray-50">
-              {fields.map((field) => (
-                <td key={field} className="px-4 py-2">
-                  {renderCellContent(row[field], field)}
-                </td>
-              ))}
-              {onRowClick && (
+          {data.map((row, idx) => {
+            const isLocal = isLocalRecord(row);
+            return (
+              <tr key={idx} className="border-t hover:bg-gray-50">
+                {fields.map((field) => (
+                  <td key={field} className="px-4 py-2">
+                    {renderCellContent(row[field], field)}
+                  </td>
+                ))}
                 <td className="px-4 py-2">
-                  <button onClick={() => onRowClick(row.id)} className="text-blue-600 hover:underline">
-                    View
-                  </button>
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    isLocal 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {isLocal ? 'Local' : 'FHIR'}
+                  </span>
                 </td>
-              )}
-            </tr>
-          ))}
+                {showActions && (
+                  <td className="px-4 py-2">
+                    <div className="flex gap-2">
+                      {onRowClick && (
+                        <button 
+                          onClick={() => onRowClick(row.id)} // This line is changed
+                          className="text-blue-600 hover:underline text-sm"
+                        >
+                          View
+                        </button>
+                      )}
+                      {onEdit && isLocal && (
+                        <button 
+                          onClick={() => onEdit(row)} 
+                          className="text-green-600 hover:underline text-sm"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {onDelete && isLocal && (
+                        <button 
+                          onClick={() => onDelete(row.id)} 
+                          className="text-red-600 hover:underline text-sm"
+                        >
+                          Delete
+                        </button>
+                      )}
+                      {!isLocal && (onEdit || onDelete) && (
+                        <span className="text-gray-400 text-xs">
+                          (FHIR records cannot be modified)
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
