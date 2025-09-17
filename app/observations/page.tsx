@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Activity, Plus, TrendingUp, TrendingDown, Minus } from "lucide-react"
+import { Activity, Plus, TrendingUp, TrendingDown, Minus, Search } from "lucide-react"
 
 interface Observation {
   id: string
@@ -43,18 +42,27 @@ const vitalSigns = [
 
 export default function ObservationsPage() {
   const [observations, setObservations] = useState<Observation[]>([])
+  const [allObservations, setAllObservations] = useState<Observation[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedPatient, setSelectedPatient] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("")
 
   const fetchObservations = async () => {
+    setLoading(true)
     try {
-      const patientParam = selectedPatient === "all" ? "" : selectedPatient
-      const response = await fetch(`/api/observations?patientId=${patientParam}`)
+      const response = await fetch("/api/observations")
       const data = await response.json()
-      setObservations(data)
+      if (Array.isArray(data)) {
+        setAllObservations(data)
+        setObservations(data)
+      } else {
+        setAllObservations([])
+        setObservations([])
+      }
     } catch (error) {
       console.error("Failed to fetch observations:", error)
+      setAllObservations([])
+      setObservations([])
     } finally {
       setLoading(false)
     }
@@ -64,28 +72,42 @@ export default function ObservationsPage() {
     try {
       const response = await fetch("/api/patients")
       const data = await response.json()
-      setPatients(data)
+      if (Array.isArray(data)) {
+        setPatients(data)
+      } else {
+        setPatients([])
+      }
     } catch (error) {
       console.error("Failed to fetch patients:", error)
+      setPatients([])
     }
   }
 
   useEffect(() => {
     fetchPatients()
+    fetchObservations()
   }, [])
 
   useEffect(() => {
-    fetchObservations()
-  }, [selectedPatient])
+    const delayDebounceFn = setTimeout(() => {
+      if (allObservations) {
+        const filtered = allObservations.filter((observation) =>
+          observation.patient?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          observation.patient?.id?.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+        setObservations(filtered)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm, allObservations])
 
   const getValueTrend = (value?: string) => {
     if (!value) return null
     const numValue = Number.parseFloat(value)
     if (isNaN(numValue)) return null
 
-    // Simple trend logic based on common vital sign ranges
     if (value.includes("/")) {
-      // Blood pressure
       const [systolic] = value.split("/").map((v) => Number.parseInt(v))
       if (systolic > 140) return "high"
       if (systolic < 90) return "low"
@@ -120,19 +142,15 @@ export default function ObservationsPage() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-          <SelectTrigger className="w-64">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Patients</SelectItem>
-            {patients.map((patient) => (
-              <SelectItem key={patient.id} value={patient.id}>
-                {patient.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by patient name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
 
       <Card>
@@ -155,23 +173,31 @@ export default function ObservationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {observations.map((observation) => {
-                const trend = getValueTrend(observation.value)
-                return (
-                  <TableRow key={observation.id}>
-                    <TableCell>{observation.date ? new Date(observation.date).toLocaleDateString() : "N/A"}</TableCell>
-                    <TableCell className="font-medium">{observation.patient?.name}</TableCell>
-                    <TableCell>{observation.code}</TableCell>
-                    <TableCell className="font-mono">{observation.value}</TableCell>
-                    <TableCell>
-                      <Badge variant={observation.status === "final" ? "default" : "secondary"}>
-                        {observation.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{getTrendIcon(trend)}</TableCell>
-                  </TableRow>
-                )
-              })}
+              {observations.length > 0 ? (
+                observations.map((observation) => {
+                  const trend = getValueTrend(observation.value)
+                  return (
+                    <TableRow key={observation.id}>
+                      <TableCell>{observation.date ? new Date(observation.date).toLocaleDateString() : "N/A"}</TableCell>
+                      <TableCell className="font-medium">{observation.patient?.name}</TableCell>
+                      <TableCell>{observation.code}</TableCell>
+                      <TableCell className="font-mono">{observation.value}</TableCell>
+                      <TableCell>
+                        <Badge variant={observation.status === "final" ? "default" : "secondary"}>
+                          {observation.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{getTrendIcon(trend)}</TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    No matching observations found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

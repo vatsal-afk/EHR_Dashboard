@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Pill, Plus, AlertTriangle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Pill, Plus, AlertTriangle, Search } from "lucide-react"
 
 interface Medication {
   id: string
@@ -42,18 +42,27 @@ const commonMedications = [
 
 export default function MedicationsPage() {
   const [medications, setMedications] = useState<Medication[]>([])
+  const [allMedications, setAllMedications] = useState<Medication[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedPatient, setSelectedPatient] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("")
 
   const fetchMedications = async () => {
+    setLoading(true)
     try {
-      const patientParam = selectedPatient === "all" ? "" : selectedPatient
-      const response = await fetch(`/api/medications?patientId=${patientParam}`)
+      const response = await fetch("/api/medications")
       const data = await response.json()
-      setMedications(data)
+      if (Array.isArray(data)) {
+        setAllMedications(data)
+        setMedications(data)
+      } else {
+        setAllMedications([])
+        setMedications([])
+      }
     } catch (error) {
       console.error("Failed to fetch medications:", error)
+      setAllMedications([])
+      setMedications([])
     } finally {
       setLoading(false)
     }
@@ -63,19 +72,36 @@ export default function MedicationsPage() {
     try {
       const response = await fetch("/api/patients")
       const data = await response.json()
-      setPatients(data)
+      if (Array.isArray(data)) {
+        setPatients(data)
+      } else {
+        setPatients([])
+      }
     } catch (error) {
       console.error("Failed to fetch patients:", error)
+      setPatients([])
     }
   }
 
   useEffect(() => {
     fetchPatients()
+    fetchMedications()
   }, [])
 
   useEffect(() => {
-    fetchMedications()
-  }, [selectedPatient])
+    const delayDebounceFn = setTimeout(() => {
+      if (allMedications) {
+        const filtered = allMedications.filter((medication) =>
+          medication.patient?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          medication.patient?.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          medication.code?.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+        setMedications(filtered)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm, allMedications])
 
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -102,19 +128,15 @@ export default function MedicationsPage() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-          <SelectTrigger className="w-64">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Patients</SelectItem>
-            {patients.map((patient) => (
-              <SelectItem key={patient.id} value={patient.id}>
-                {patient.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by patient name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -124,7 +146,7 @@ export default function MedicationsPage() {
             <Pill className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{medications.filter((m) => m.status === "active").length}</div>
+            <div className="text-2xl font-bold">{allMedications.filter((m) => m.status === "active").length}</div>
             <p className="text-xs text-muted-foreground">Currently prescribed</p>
           </CardContent>
         </Card>
@@ -134,7 +156,7 @@ export default function MedicationsPage() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{medications.filter((m) => m.status === "discontinued").length}</div>
+            <div className="text-2xl font-bold">{allMedications.filter((m) => m.status === "discontinued").length}</div>
             <p className="text-xs text-muted-foreground">No longer prescribed</p>
           </CardContent>
         </Card>
@@ -144,7 +166,7 @@ export default function MedicationsPage() {
             <Pill className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{medications.length}</div>
+            <div className="text-2xl font-bold">{allMedications.length}</div>
             <p className="text-xs text-muted-foreground">All time records</p>
           </CardContent>
         </Card>
@@ -167,15 +189,23 @@ export default function MedicationsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {medications.map((medication) => (
-                <TableRow key={medication.id}>
-                  <TableCell className="font-medium">{medication.patient?.name}</TableCell>
-                  <TableCell>{medication.code}</TableCell>
-                  <TableCell>
-                    <Badge variant={getStatusColor(medication.status)}>{medication.status}</Badge>
+              {medications.length > 0 ? (
+                medications.map((medication) => (
+                  <TableRow key={medication.id}>
+                    <TableCell className="font-medium">{medication.patient?.name}</TableCell>
+                    <TableCell>{medication.code}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusColor(medication.status)}>{medication.status}</Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-24 text-center">
+                    No matching medications found.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>

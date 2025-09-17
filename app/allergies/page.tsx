@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AlertTriangle } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { AlertTriangle, Search } from "lucide-react"
 
 interface Allergy {
   id: string
@@ -18,18 +18,13 @@ interface Allergy {
   }
 }
 
-interface Patient {
-  id: string
-  name: string
-}
-
 export default function AllergiesPage() {
   const [allergies, setAllergies] = useState<Allergy[]>([])
-  const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedPatient, setSelectedPatient] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("")
 
   const fetchAllergies = async () => {
+    setLoading(true)
     try {
       const response = await fetch("/api/patients")
       const patientsData = await response.json()
@@ -46,8 +41,11 @@ export default function AllergiesPage() {
         }
       })
 
-      const filteredAllergies =
-        selectedPatient === "all" ? allAllergies : allAllergies.filter((a) => a.patient?.id === selectedPatient)
+      const filteredAllergies = allAllergies.filter(
+        (allergy) =>
+          allergy.patient?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          allergy.patient?.id.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
 
       setAllergies(filteredAllergies)
     } catch (error) {
@@ -57,23 +55,13 @@ export default function AllergiesPage() {
     }
   }
 
-  const fetchPatients = async () => {
-    try {
-      const response = await fetch("/api/patients")
-      const data = await response.json()
-      setPatients(data)
-    } catch (error) {
-      console.error("Failed to fetch patients:", error)
-    }
-  }
-
   useEffect(() => {
-    fetchPatients()
-  }, [])
+    const delayDebounceFn = setTimeout(() => {
+      fetchAllergies()
+    }, 300)
 
-  useEffect(() => {
-    fetchAllergies()
-  }, [selectedPatient])
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm])
 
   const getCriticalityColor = (criticality?: string) => {
     switch (criticality) {
@@ -99,19 +87,15 @@ export default function AllergiesPage() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-          <SelectTrigger className="w-64">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Patients</SelectItem>
-            {patients.map((patient) => (
-              <SelectItem key={patient.id} value={patient.id}>
-                {patient.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by patient name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

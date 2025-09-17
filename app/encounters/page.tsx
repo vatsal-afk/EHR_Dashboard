@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { FileText, Plus, Calendar } from "lucide-react"
+import { FileText, Plus, Calendar, Search } from "lucide-react"
 
 interface Encounter {
   id: string
@@ -36,18 +35,27 @@ const encounterTypes = ["inpatient", "outpatient", "ambulatory", "emergency", "h
 
 export default function EncountersPage() {
   const [encounters, setEncounters] = useState<Encounter[]>([])
+  const [allEncounters, setAllEncounters] = useState<Encounter[]>([])
   const [patients, setPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedPatient, setSelectedPatient] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("")
 
   const fetchEncounters = async () => {
+    setLoading(true)
     try {
-      const patientParam = selectedPatient === "all" ? "" : selectedPatient
-      const response = await fetch(`/api/encounters?patientId=${patientParam}`)
+      const response = await fetch("/api/encounters")
       const data = await response.json()
-      setEncounters(data)
+      if (Array.isArray(data)) {
+        setAllEncounters(data)
+        setEncounters(data)
+      } else {
+        setAllEncounters([])
+        setEncounters([])
+      }
     } catch (error) {
       console.error("Failed to fetch encounters:", error)
+      setAllEncounters([])
+      setEncounters([])
     } finally {
       setLoading(false)
     }
@@ -57,19 +65,35 @@ export default function EncountersPage() {
     try {
       const response = await fetch("/api/patients")
       const data = await response.json()
-      setPatients(data)
+      if (Array.isArray(data)) {
+        setPatients(data)
+      } else {
+        setPatients([])
+      }
     } catch (error) {
       console.error("Failed to fetch patients:", error)
+      setPatients([])
     }
   }
 
   useEffect(() => {
     fetchPatients()
+    fetchEncounters()
   }, [])
 
   useEffect(() => {
-    fetchEncounters()
-  }, [selectedPatient])
+    const delayDebounceFn = setTimeout(() => {
+      if (allEncounters) {
+        const filtered = allEncounters.filter((encounter) =>
+          encounter.patient?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          encounter.patient?.id?.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+        setEncounters(filtered)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm, allEncounters])
 
   const getStatusColor = (status?: string) => {
     switch (status) {
@@ -113,19 +137,15 @@ export default function EncountersPage() {
       </div>
 
       <div className="flex items-center space-x-4">
-        <Select value={selectedPatient} onValueChange={setSelectedPatient}>
-          <SelectTrigger className="w-64">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Patients</SelectItem>
-            {patients.map((patient) => (
-              <SelectItem key={patient.id} value={patient.id}>
-                {patient.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by patient name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -135,7 +155,7 @@ export default function EncountersPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{encounters.length}</div>
+            <div className="text-2xl font-bold">{allEncounters.length}</div>
             <p className="text-xs text-muted-foreground">All patient encounters</p>
           </CardContent>
         </Card>
@@ -145,7 +165,7 @@ export default function EncountersPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{encounters.filter((e) => e.status === "in-progress").length}</div>
+            <div className="text-2xl font-bold">{allEncounters.filter((e) => e.status === "in-progress").length}</div>
             <p className="text-xs text-muted-foreground">Active encounters</p>
           </CardContent>
         </Card>
@@ -155,7 +175,7 @@ export default function EncountersPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{encounters.filter((e) => e.status === "finished").length}</div>
+            <div className="text-2xl font-bold">{allEncounters.filter((e) => e.status === "finished").length}</div>
             <p className="text-xs text-muted-foreground">Finished encounters</p>
           </CardContent>
         </Card>
@@ -166,7 +186,7 @@ export default function EncountersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {encounters.filter((e) => e.class === "emergency").length}
+              {allEncounters.filter((e) => e.class === "emergency").length}
             </div>
             <p className="text-xs text-muted-foreground">Emergency visits</p>
           </CardContent>
@@ -193,29 +213,37 @@ export default function EncountersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {encounters.map((encounter) => {
-                const duration =
-                  encounter.start && encounter.end
-                    ? Math.round(
-                        (new Date(encounter.end).getTime() - new Date(encounter.start).getTime()) / (1000 * 60),
-                      )
-                    : null
+              {encounters.length > 0 ? (
+                encounters.map((encounter) => {
+                  const duration =
+                    encounter.start && encounter.end
+                      ? Math.round(
+                          (new Date(encounter.end).getTime() - new Date(encounter.start).getTime()) / (1000 * 60),
+                        )
+                      : null
 
-                return (
-                  <TableRow key={encounter.id}>
-                    <TableCell>{encounter.start ? new Date(encounter.start).toLocaleDateString() : "N/A"}</TableCell>
-                    <TableCell className="font-medium">{encounter.patient?.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={getEncounterTypeColor(encounter.class)}>{encounter.class}</Badge>
-                    </TableCell>
-                    <TableCell>{encounter.subject}</TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusColor(encounter.status)}>{encounter.status}</Badge>
-                    </TableCell>
-                    <TableCell>{duration ? `${duration} min` : "N/A"}</TableCell>
-                  </TableRow>
-                )
-              })}
+                  return (
+                    <TableRow key={encounter.id}>
+                      <TableCell>{encounter.start ? new Date(encounter.start).toLocaleDateString() : "N/A"}</TableCell>
+                      <TableCell className="font-medium">{encounter.patient?.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={getEncounterTypeColor(encounter.class)}>{encounter.class}</Badge>
+                      </TableCell>
+                      <TableCell>{encounter.subject}</TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusColor(encounter.status)}>{encounter.status}</Badge>
+                      </TableCell>
+                      <TableCell>{duration ? `${duration} min` : "N/A"}</TableCell>
+                    </TableRow>
+                  )
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    No matching encounters found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -24,16 +24,27 @@ interface Patient {
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState<Patient[]>([])
+  const [allPatients, setAllPatients] = useState<Patient[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
 
   const fetchPatients = async () => {
+    setLoading(true)
     try {
-      const response = await fetch(`/api/patients?search=${searchTerm}`)
+      const response = await fetch(`/api/patients`)
       const data = await response.json()
-      setPatients(data)
+      if (Array.isArray(data)) {
+        setAllPatients(data)
+        setPatients(data)
+      } else {
+        setAllPatients([])
+        setPatients([])
+        console.error("API did not return an array:", data)
+      }
     } catch (error) {
       console.error("Failed to fetch patients:", error)
+      setAllPatients([])
+      setPatients([])
     } finally {
       setLoading(false)
     }
@@ -41,7 +52,21 @@ export default function PatientsPage() {
 
   useEffect(() => {
     fetchPatients()
-  }, [searchTerm])
+  }, [])
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (allPatients) {
+        const filtered = allPatients.filter((patient) =>
+          patient.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          patient.id.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+        setPatients(filtered)
+      }
+    }, 300)
+
+    return () => clearTimeout(delayDebounceFn)
+  }, [searchTerm, allPatients])
 
   const handleDelete = async (patientId: string) => {
     if (confirm("Are you sure you want to delete this patient?")) {
@@ -111,76 +136,84 @@ export default function PatientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {patients.map((patient) => (
-                <TableRow key={patient.id}>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        <AvatarImage src={`/generic-placeholder-graphic.png?height=40&width=40`} />
-                        <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <div className="font-medium">{patient.name}</div>
-                        <div className="text-sm text-muted-foreground">{patient.id}</div>
+              {patients.length > 0 ? (
+                patients.map((patient) => (
+                  <TableRow key={patient.id}>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        <Avatar>
+                          <AvatarImage src={`/generic-placeholder-graphic.png?height=40&width=40`} />
+                          <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium">{patient.name}</div>
+                          <div className="text-sm text-muted-foreground">{patient.id}</div>
+                        </div>
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{calculateAge(patient.birthDate)}</TableCell>
-                  <TableCell className="capitalize">{patient.gender || "N/A"}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {patient.allergies.slice(0, 2).map((allergy) => (
-                        <Badge key={allergy.id} variant={allergy.criticality === "high" ? "destructive" : "secondary"}>
-                          {allergy.code}
-                        </Badge>
-                      ))}
-                      {patient.allergies.length > 2 && <Badge variant="outline">+{patient.allergies.length - 2}</Badge>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {patient.conditions.slice(0, 2).map((condition) => (
-                        <Badge key={condition.id} variant="outline">
-                          {condition.code}
-                        </Badge>
-                      ))}
-                      {patient.conditions.length > 2 && (
-                        <Badge variant="outline">+{patient.conditions.length - 2}</Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{patient.medications.length}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={patient.appointments.some((a) => a.status === "scheduled") ? "default" : "secondary"}
-                    >
-                      {patient.appointments.some((a) => a.status === "scheduled") ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <Link href={`/patients/${patient.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(patient.id)}
-                        className="text-destructive hover:text-destructive"
+                    </TableCell>
+                    <TableCell>{calculateAge(patient.birthDate)}</TableCell>
+                    <TableCell className="capitalize">{patient.gender || "N/A"}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {patient.allergies.slice(0, 2).map((allergy) => (
+                          <Badge key={allergy.id} variant={allergy.criticality === "high" ? "destructive" : "secondary"}>
+                            {allergy.code}
+                          </Badge>
+                        ))}
+                        {patient.allergies.length > 2 && <Badge variant="outline">+{patient.allergies.length - 2}</Badge>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {patient.conditions.slice(0, 2).map((condition) => (
+                          <Badge key={condition.id} variant="outline">
+                            {condition.code}
+                          </Badge>
+                        ))}
+                        {patient.conditions.length > 2 && (
+                          <Badge variant="outline">+{patient.conditions.length - 2}</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{patient.medications.length}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={patient.appointments.some((a) => a.status === "scheduled") ? "default" : "secondary"}
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                        {patient.appointments.some((a) => a.status === "scheduled") ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Link href={`/patients/${patient.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(patient.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-24 text-center">
+                    No matching patients found.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </CardContent>
