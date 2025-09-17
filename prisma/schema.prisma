@@ -12,7 +12,8 @@ model Patient {
   id                String             @id @unique
   name              String
   gender            String?
-  birthDate         String?
+  birthDate         DateTime?
+  createdAt         DateTime?          @default(now())
   allergies         Allergy[]
   appointments      Appointment[]
   conditions        Condition[]
@@ -113,14 +114,4 @@ model Procedure {
   performed String?
   patient   Patient?  @relation(fields: [patientId], references: [id])
   patientId String?
-}
-
-model Billing {
-  id            String  @id @unique
-  patientName   String
-  service       String
-  amount        Float
-  status        String
-  date          String
-  insuranceStatus String
 }

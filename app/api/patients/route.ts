@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(patients)
   } catch (error) {
+    console.error("Failed to fetch patients:", error)
     return NextResponse.json({ error: "Failed to fetch patients" }, { status: 500 })
   }
 }
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
         id: `patient-${Date.now()}`,
         name,
         gender,
-        birthDate,
+        birthDate: birthDate ? new Date(birthDate) : undefined,
       },
       include: {
         allergies: true,
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(patient)
   } catch (error) {
+    console.error("Failed to create patient:", error)
     return NextResponse.json({ error: "Failed to create patient" }, { status: 500 })
   }
 }
