@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,59 +18,27 @@ interface BillingRecord {
   insuranceStatus: "covered" | "partial" | "denied" | "pending"
 }
 
-// Mock billing data
-const mockBillingData: BillingRecord[] = [
-  {
-    id: "bill-1",
-    patientName: "John Smith",
-    service: "Annual Checkup",
-    amount: 250.0,
-    status: "paid",
-    date: "2024-01-15",
-    insuranceStatus: "covered",
-  },
-  {
-    id: "bill-2",
-    patientName: "Sarah Johnson",
-    service: "Blood Work",
-    amount: 180.0,
-    status: "pending",
-    date: "2024-01-16",
-    insuranceStatus: "pending",
-  },
-  {
-    id: "bill-3",
-    patientName: "Michael Brown",
-    service: "X-Ray",
-    amount: 320.0,
-    status: "overdue",
-    date: "2024-01-10",
-    insuranceStatus: "partial",
-  },
-  {
-    id: "bill-4",
-    patientName: "Emily Davis",
-    service: "Consultation",
-    amount: 150.0,
-    status: "paid",
-    date: "2024-01-12",
-    insuranceStatus: "covered",
-  },
-  {
-    id: "bill-5",
-    patientName: "Robert Wilson",
-    service: "Physical Therapy",
-    amount: 120.0,
-    status: "pending",
-    date: "2024-01-18",
-    insuranceStatus: "covered",
-  },
-]
-
 export default function BillingPage() {
-  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>(mockBillingData)
+  const [billingRecords, setBillingRecords] = useState<BillingRecord[]>([])
   const [statusFilter, setStatusFilter] = useState("all")
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchBillingRecords()
+  }, [])
+
+  const fetchBillingRecords = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("/api/billing")
+      const data = await response.json()
+      setBillingRecords(data)
+    } catch (error) {
+      console.error("Failed to fetch billing records:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredRecords =
     statusFilter === "all" ? billingRecords : billingRecords.filter((record) => record.status === statusFilter)
@@ -117,6 +85,10 @@ export default function BillingPage() {
     .filter((record) => record.status === "overdue")
     .reduce((sum, record) => sum + record.amount, 0)
 
+  if (loading) {
+    return <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">Loading...</div>
+  }
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
@@ -135,7 +107,7 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">${totalRevenue.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">+12% from last month</p>
+            <p className="text-xs text-muted-foreground">Based on paid invoices</p>
           </CardContent>
         </Card>
         <Card>
@@ -164,12 +136,12 @@ export default function BillingPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{billingRecords.length}</div>
-            <p className="text-xs text-muted-foreground">Total transactions</p>
+            <p className="text-xs text-muted-foreground">All time transactions</p>
           </CardContent>
         </Card>
       </div>

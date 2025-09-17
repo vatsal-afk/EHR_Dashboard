@@ -96,7 +96,7 @@ model DiagnosticReport {
   subject       String?
   effectiveDate String?
   issued        String?
-  patient       Patient? @relation(fields: [patientId], references: [id])
+  patient       Patient?  @relation(fields: [patientId], references: [id])
   patientId     String?
 }
 
@@ -113,4 +113,14 @@ model Procedure {
   performed String?
   patient   Patient?  @relation(fields: [patientId], references: [id])
   patientId String?
+}
+
+model Billing {
+  id            String  @id @unique
+  patientName   String
+  service       String
+  amount        Float
+  status        String
+  date          String
+  insuranceStatus String
 }

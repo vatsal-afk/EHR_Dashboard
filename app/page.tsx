@@ -1,33 +1,158 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Calendar, Activity, FileText } from "lucide-react"
+import { format, isSameDay, parseISO, formatDistanceToNow } from "date-fns"
+
+interface Patient {
+  id: string
+  name: string
+  conditions: Array<{ id: string }>
+  diagnosticReports: Array<{ id: string }>
+}
+
+interface Appointment {
+  id: string
+  status: string
+  description: string
+  start: string
+  provider: string
+  patient: { name: string }
+}
+
+interface RecentActivity {
+  id: string
+  type: string
+  patientName: string
+  timeAgo: string
+  color: string
+}
 
 export default function DashboardPage() {
-  const stats = [
+  const [stats, setStats] = useState([
     {
       title: "Total Patients",
-      value: "1,234",
-      description: "+20.1% from last month",
+      value: "...",
+      description: "...",
       icon: Users,
     },
     {
       title: "Appointments Today",
-      value: "23",
-      description: "4 pending confirmations",
+      value: "...",
+      description: "...",
       icon: Calendar,
     },
     {
       title: "Active Cases",
-      value: "89",
-      description: "+12% from last week",
+      value: "...",
+      description: "...",
       icon: Activity,
     },
     {
       title: "Reports Generated",
-      value: "156",
-      description: "+8% from last month",
+      value: "...",
+      description: "...",
       icon: FileText,
     },
-  ]
+  ])
+  const [appointments, setAppointments] = useState<Appointment[]>([])
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [patientsResponse, appointmentsResponse, reportsResponse, encountersResponse] = await Promise.all([
+          fetch("/api/patients"),
+          fetch(`/api/appointments`),
+          fetch("/api/diagnostic-reports?patientId=all"),
+          fetch("/api/encounters"),
+        ])
+
+        const [patientsData, allAppointmentsData, reportsData, encountersData] = await Promise.all([
+          patientsResponse.json(),
+          appointmentsResponse.json(),
+          reportsResponse.json(),
+          encountersResponse.json(),
+        ])
+
+        const totalPatients = patientsData.length
+        let activeCases = 0
+        patientsData.forEach((patient: any) => {
+          activeCases += patient.conditions.length
+        })
+
+        const today = new Date()
+        const appointmentsToday = allAppointmentsData.filter((apt: any) =>
+          apt.start ? isSameDay(parseISO(apt.start), today) : false,
+        )
+
+        setStats([
+          {
+            title: "Total Patients",
+            value: totalPatients.toString(),
+            description: "All registered patients",
+            icon: Users,
+          },
+          {
+            title: "Appointments Today",
+            value: appointmentsToday.length.toString(),
+            description: `${appointmentsToday.filter((a: any) => a.status === "scheduled").length} pending confirmations`,
+            icon: Calendar,
+          },
+          {
+            title: "Active Cases",
+            value: activeCases.toString(),
+            description: "Total medical conditions across patients",
+            icon: Activity,
+          },
+          {
+            title: "Reports Generated",
+            value: reportsData.length.toString(),
+            description: "Total diagnostic reports",
+            icon: FileText,
+          },
+        ])
+
+        setAppointments(appointmentsToday)
+
+        const allActivities = [
+          ...patientsData.map((p: any) => ({
+            id: p.id,
+            type: "New patient registered",
+            patientName: p.name,
+            time: new Date(), // Using current time as a placeholder since createdAt is not in the model
+            color: "bg-blue-500",
+          })),
+          ...encountersData.map((e: any) => ({
+            id: e.id,
+            type: `Encounter status: ${e.status}`,
+            patientName: e.patient?.name,
+            time: e.start,
+            color: e.status === "finished" ? "bg-green-500" : "bg-orange-500",
+          })),
+          ...reportsData.map((r: any) => ({
+            id: r.id,
+            type: "Lab results available",
+            patientName: r.patient?.name,
+            time: r.issued,
+            color: "bg-orange-500",
+          })),
+        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+
+        setRecentActivity(
+          allActivities.slice(0, 5).map((activity) => ({
+            ...activity,
+            timeAgo: formatDistanceToNow(new Date(activity.time), { addSuffix: true }),
+          })),
+        )
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -58,27 +183,21 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">New patient registered</p>
-                  <p className="text-xs text-muted-foreground">Sarah Johnson - 2 minutes ago</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Appointment completed</p>
-                  <p className="text-xs text-muted-foreground">John Smith - 15 minutes ago</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Lab results available</p>
-                  <p className="text-xs text-muted-foreground">Michael Brown - 1 hour ago</p>
-                </div>
-              </div>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-center space-x-4">
+                    <div className={`w-2 h-2 rounded-full ${activity.color}`}></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{activity.type}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activity.patientName} - {activity.timeAgo}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="py-8 text-center text-muted-foreground">No recent activity</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -90,27 +209,22 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">9:00 AM - John Smith</p>
-                  <p className="text-xs text-muted-foreground">Annual Checkup</p>
-                </div>
-                <div className="text-xs text-muted-foreground">Room 101</div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">10:30 AM - Emily Davis</p>
-                  <p className="text-xs text-muted-foreground">Follow-up</p>
-                </div>
-                <div className="text-xs text-muted-foreground">Room 102</div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">2:00 PM - Robert Wilson</p>
-                  <p className="text-xs text-muted-foreground">Consultation</p>
-                </div>
-                <div className="text-xs text-muted-foreground">Room 103</div>
-              </div>
+              {appointments.length > 0 ? (
+                appointments.map((appointment) => (
+                  <div key={appointment.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">
+                        {appointment.start ? format(new Date(appointment.start), "h:mm a") : "N/A"} -{" "}
+                        {appointment.patient.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{appointment.description}</p>
+                    </div>
+                    <div className="text-xs text-muted-foreground">{appointment.provider}</div>
+                  </div>
+                ))
+              ) : (
+                <p className="py-8 text-center text-muted-foreground">No appointments scheduled for today</p>
+              )}
             </div>
           </CardContent>
         </Card>
