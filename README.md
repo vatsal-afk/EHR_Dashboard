@@ -38,7 +38,7 @@ Create a `.env` file in the root of your project and add the following environme
 ```env
 DATABASE_URL="file:./dev.db"
 
-FHIR_BASE_URL="[https://hapi.fhir.org/baseR4](https://hapi.fhir.org/baseR4)"
+NEXT_PUBLIC_FHIR_BASE_URL="[https://hapi.fhir.org/baseR4](https://hapi.fhir.org/baseR4)"
 ```
 
 ### Database Setup
