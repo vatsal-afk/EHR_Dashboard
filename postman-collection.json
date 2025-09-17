@@ -1,0 +1,365 @@
+{
+  "info": {
+    "name": "EHR API Collection",
+    "description": "Complete API collection for local EHR system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000/api",
+      "type": "string"
+    },
+    {
+      "key": "patient_id",
+      "value": "patient-1758088760881",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "👥 Patients",
+      "item": [
+        {
+          "name": "Get All Patients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/patients",
+              "host": ["{{base_url}}"],
+              "path": ["patients"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create New Patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"gender\": \"male\",\n  \"birthDate\": \"1990-05-15\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/patients",
+              "host": ["{{base_url}}"],
+              "path": ["patients"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Patient created successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const patient = pm.response.json();",
+                  "    pm.collectionVariables.set('patient_id', patient.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Patient by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/patients/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["patients", "{{patient_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Patient",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/patients/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["patients", "{{patient_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📅 Appointments",
+      "item": [
+        {
+          "name": "Get All Appointments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"]
+            }
+          }
+        },
+        {
+          "name": "Create Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patient_id}}\",\n  \"provider\": \"Dr. Smith\",\n  \"description\": \"Annual Checkup\",\n  \"start\": \"2025-09-17T10:00:00Z\",\n  \"end\": \"2025-09-17T11:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["appointments"]
+            }
+          }
+        },
+        {
+          "name": "Update Appointment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/appointments/appt-1758088800000",
+              "host": ["{{base_url}}"],
+              "path": ["appointments", "appt-1758088800000"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Medical Records",
+      "item": [
+        {
+          "name": "Get All Allergies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/allergies",
+              "host": ["{{base_url}}"],
+              "path": ["allergies"]
+            }
+          }
+        },
+        {
+          "name": "Add Allergy",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"Peanuts\",\n  \"status\": \"active\",\n  \"criticality\": \"high\",\n  \"patientId\": \"{{patient_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/allergies",
+              "host": ["{{base_url}}"],
+              "path": ["allergies"]
+            }
+          }
+        },
+        {
+          "name": "Get All Conditions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/conditions",
+              "host": ["{{base_url}}"],
+              "path": ["conditions"]
+            }
+          }
+        },
+        {
+          "name": "Add Condition",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"Hypertension\",\n  \"patientId\": \"{{patient_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/conditions",
+              "host": ["{{base_url}}"],
+              "path": ["conditions"]
+            }
+          }
+        },
+        {
+          "name": "Get All Medications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/medications",
+              "host": ["{{base_url}}"],
+              "path": ["medications"]
+            }
+          }
+        },
+        {
+          "name": "Add Medication",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{patient_id}}\",\n  \"code\": \"Lisinopril 10mg\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/medications",
+              "host": ["{{base_url}}"],
+              "path": ["medications"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📊 Additional Endpoints",
+      "item": [
+        {
+          "name": "Get All Observations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/observations",
+              "host": ["{{base_url}}"],
+              "path": ["observations"]
+            }
+          }
+        },
+        {
+          "name": "Get All Encounters",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/encounters",
+              "host": ["{{base_url}}"],
+              "path": ["encounters"]
+            }
+          }
+        },
+        {
+          "name": "Get All Immunizations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/immunizations",
+              "host": ["{{base_url}}"],
+              "path": ["immunizations"]
+            }
+          }
+        },
+        {
+          "name": "Get All Practitioners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/practitioners",
+              "host": ["{{base_url}}"],
+              "path": ["practitioners"]
+            }
+          }
+        },
+        {
+          "name": "Get All Procedures",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/procedures",
+              "host": ["{{base_url}}"],
+              "path": ["procedures"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Set timestamp for unique IDs",
+          "pm.globals.set('timestamp', Date.now());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+          "});"
+        ]
+      }
+    }
+  ]
+}

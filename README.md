@@ -43,11 +43,11 @@ FHIR_BASE_URL="[https://hapi.fhir.org/baseR4](https://hapi.fhir.org/baseR4)"
 
 ### Database Setup
 
-    Run the following command to create your SQLite database file and apply the initial schema migration:
+Run the following command to create your SQLite database file and apply the initial schema migration:
 
-    ```
-    npx prisma migrate dev --name init
-    ```
+```
+npx prisma migrate dev --name init
+```
 
 ### Running the Application
 
