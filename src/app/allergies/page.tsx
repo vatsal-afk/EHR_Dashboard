@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import ResourceTable from '@/components/ResourceTable';
 import SearchBar from '@/components/SearchBar';
-import { normalizeAllergy } from '@/lib/normalizers';
 
 export default function AllergiesPage() {
   const [data, setData] = useState<any[]>([]);
@@ -40,6 +39,10 @@ export default function AllergiesPage() {
     }
   };
 
+  const handleSearch = (query: string) => {
+    fetchData(query);
+  };
+
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this allergy?')) {
       try {
@@ -53,15 +56,10 @@ export default function AllergiesPage() {
     }
   };
 
-  const handleSearch = (query: string) => {
-    fetchData(query);
-  };
-
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">Allergies</h1>
       <SearchBar onSearch={handleSearch} placeholder="Search by Patient ID..." />
-
       <div className="mt-4 p-4 border rounded-lg">
         <h2 className="text-lg font-bold mb-2">Create New Allergy</h2>
         <form onSubmit={handleCreate} className="flex flex-col gap-2">
@@ -108,13 +106,12 @@ export default function AllergiesPage() {
           </button>
         </form>
       </div>
-
       {loading ? (
         <p>Loading...</p>
       ) : (
         <ResourceTable
           data={data}
-          fields={['id', 'code', 'status', 'criticality', 'patient']}
+          fields={['id', 'code', 'status', 'criticality', 'patientId']}
         />
       )}
     </div>

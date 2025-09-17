@@ -2,55 +2,70 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ResourceTable from '@/components/ResourceTable';
-import { normalizeAllergy, normalizeMedication, normalizeCondition, normalizeAppointment } from '@/lib/normalizers';
-import { apiClient } from '@/lib/apiClient';
+import PatientUpdateForm from '@/components/PatientUpdateForm';
+import AllergyUpdateForm from '@/components/AllergyUpdateForm';
+import ConditionUpdateForm from '@/components/ConditionUpdateForm';
 
 export default function PatientDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const [patient, setPatient] = useState<any>(null);
   const [allergies, setAllergies] = useState<any[]>([]);
-  const [medications, setMedications] = useState<any[]>([]);
   const [conditions, setConditions] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isUpdatingPatient, setIsUpdatingPatient] = useState(false);
+  const [isUpdatingAllergy, setIsUpdatingAllergy] = useState(false);
+  const [isUpdatingCondition, setIsUpdatingCondition] = useState(false);
+  const [currentAllergy, setCurrentAllergy] = useState<any>(null);
+  const [currentCondition, setCurrentCondition] = useState<any>(null);
+
+  const fetchPatientData = async () => {
+    setLoading(true);
+    try {
+      const patientRes = await fetch(`/api/patients/${id}`);
+      const patientData = await patientRes.json();
+      setPatient(patientData);
+
+      const allergiesRes = await fetch(`/api/allergies?patient=${id}`);
+      const allergiesData = await allergiesRes.json();
+      setAllergies(Array.isArray(allergiesData) ? allergiesData : []);
+
+      const conditionsRes = await fetch(`/api/conditions?patient=${id}`);
+      const conditionsData = await conditionsRes.json();
+      setConditions(Array.isArray(conditionsData) ? conditionsData : []);
+      
+    } catch (error) {
+      console.error('Failed to fetch patient data', error);
+      setPatient(null);
+      setAllergies([]);
+      setConditions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!id) return;
-
-    const fetchPatientData = async () => {
-      setLoading(true);
-      try {
-        const patientRes = await fetch(`/api/patients/${id}`);
-        const patientData = await patientRes.json();
-        setPatient(patientData);
-
-        const allergiesRes = await apiClient('AllergyIntolerance', `?patient=${id}`);
-        const allergiesData = allergiesRes.entry?.map((e: any) => normalizeAllergy(e.resource)) || [];
-        setAllergies(allergiesData);
-
-        const medicationsRes = await apiClient('MedicationRequest', `?subject=${id}`);
-        const medicationsData = medicationsRes.entry?.map((e: any) => normalizeMedication(e.resource)) || [];
-        setMedications(medicationsData);
-
-        const conditionsRes = await apiClient('Condition', `?subject=${id}`);
-        const conditionsData = conditionsRes.entry?.map((e: any) => normalizeCondition(e.resource)) || [];
-        setConditions(conditionsData);
-
-        const appointmentsRes = await apiClient('Appointment', `?patient=${id}`);
-        const appointmentsData = appointmentsRes.entry?.map((e: any) => normalizeAppointment(e.resource)) || [];
-        setAppointments(appointmentsData);
-      } catch (error) {
-        console.error('Failed to fetch patient data', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPatientData();
+    if (id) {
+      fetchPatientData();
+    }
   }, [id]);
 
-  const handleDelete = async () => {
+  const handleUpdatePatient = (updatedPatient: any) => {
+    setPatient(updatedPatient);
+    setIsUpdatingPatient(false);
+  };
+
+  const handleUpdateAllergy = () => {
+    fetchPatientData();
+    setIsUpdatingAllergy(false);
+  };
+
+  const handleUpdateCondition = () => {
+    fetchPatientData();
+    setIsUpdatingCondition(false);
+  };
+
+  const handleDeletePatient = async () => {
     if (window.confirm('Are you sure you want to delete this patient?')) {
       try {
         const res = await fetch(`/api/patients?id=${id}`, {
@@ -67,6 +82,26 @@ export default function PatientDetailsPage() {
     }
   };
 
+  const handleEditAllergy = (allergy: any) => {
+    setCurrentAllergy(allergy);
+    setIsUpdatingAllergy(true);
+  };
+
+  const handleEditCondition = (condition: any) => {
+    setCurrentCondition(condition);
+    setIsUpdatingCondition(true);
+  };
+
+  const handleAddAllergy = () => {
+    setCurrentAllergy(null);
+    setIsUpdatingAllergy(true);
+  };
+
+  const handleAddCondition = () => {
+    setCurrentCondition(null);
+    setIsUpdatingCondition(true);
+  };
+
   if (loading) {
     return <p className="p-6">Loading patient data...</p>;
   }
@@ -80,9 +115,8 @@ export default function PatientDetailsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{patient.name}</h1>
         <div className="flex gap-2">
-          {/* Implement Update Form/Modal here */}
-          <button className="px-4 py-2 bg-blue-600 text-white rounded text-sm">Update Details</button>
-          <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded text-sm">
+          <button onClick={() => setIsUpdatingPatient(true)} className="px-4 py-2 bg-blue-600 text-white rounded text-sm">Update Details</button>
+          <button onClick={handleDeletePatient} className="px-4 py-2 bg-red-600 text-white rounded text-sm">
             Delete Patient
           </button>
         </div>
@@ -96,26 +130,56 @@ export default function PatientDetailsPage() {
           <p><strong>Birth Date:</strong> {patient.birthDate}</p>
         </div>
 
-        <div className="bg-gray-100 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">Appointments</h2>
-          <ResourceTable data={appointments} fields={['id', 'description', 'status', 'start', 'end', 'provider']} />
+        <div className="bg-gray-100 p-4 rounded-lg col-span-1 md:col-span-2">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-xl font-semibold">Allergies</h2>
+            <button onClick={handleAddAllergy} className="px-3 py-1 bg-green-600 text-white rounded text-sm">Add New</button>
+          </div>
+          <ResourceTable
+            data={allergies}
+            fields={['id', 'code', 'status', 'criticality']}
+            onRowClick={handleEditAllergy}
+          />
         </div>
 
-        <div className="bg-gray-100 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">Allergies</h2>
-          <ResourceTable data={allergies} fields={['id', 'code', 'status', 'criticality']} />
-        </div>
-
-        <div className="bg-gray-100 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">Conditions</h2>
-          <ResourceTable data={conditions} fields={['id', 'code']} />
-        </div>
-
-        <div className="bg-gray-100 p-4 rounded-lg">
-          <h2 className="text-xl font-semibold mb-2">Medications</h2>
-          <ResourceTable data={medications} fields={['id', 'code', 'status']} />
+        <div className="bg-gray-100 p-4 rounded-lg col-span-1 md:col-span-2">
+          <div className="flex justify-between items-center mb-2">
+            <h2 className="text-xl font-semibold">Conditions</h2>
+            <button onClick={handleAddCondition} className="px-3 py-1 bg-green-600 text-white rounded text-sm">Add New</button>
+          </div>
+          <ResourceTable
+            data={conditions}
+            fields={['id', 'code']}
+            onRowClick={handleEditCondition}
+          />
         </div>
       </div>
+      
+      {isUpdatingPatient && patient && (
+        <PatientUpdateForm
+          patient={patient}
+          onUpdate={handleUpdatePatient}
+          onClose={() => setIsUpdatingPatient(false)}
+        />
+      )}
+
+      {isUpdatingAllergy && (
+        <AllergyUpdateForm
+          allergy={currentAllergy}
+          patientId={id as string}
+          onUpdate={handleUpdateAllergy}
+          onClose={() => setIsUpdatingAllergy(false)}
+        />
+      )}
+
+      {isUpdatingCondition && (
+        <ConditionUpdateForm
+          condition={currentCondition}
+          patientId={id as string}
+          onUpdate={handleUpdateCondition}
+          onClose={() => setIsUpdatingCondition(false)}
+        />
+      )}
     </div>
   );
 }

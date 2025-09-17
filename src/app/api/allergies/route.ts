@@ -8,23 +8,19 @@ const RESOURCE = "AllergyIntolerance";
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const patientId = searchParams.get("patient");
+  const search = searchParams.get("search");
 
   try {
-    if (patientId) {
-      const localAllergies = await prisma.allergy.findMany({
-        where: { patientId },
-      });
-      if (localAllergies.length > 0) {
-        return NextResponse.json(localAllergies);
-      }
-      const data = await apiClient(RESOURCE, `?patient=${patientId}`);
-      const items = Array.isArray(data.entry)
-        ? data.entry.map((e: any) => normalizeAllergy(e.resource))
-        : [];
-      return NextResponse.json(items);
+    const localAllergies = patientId
+      ? await prisma.allergy.findMany({ where: { patientId } })
+      : await prisma.allergy.findMany();
+    if (localAllergies.length > 0) {
+      return NextResponse.json(localAllergies);
     }
-
-    const data = await apiClient(RESOURCE, "?_count=10");
+    const data = await apiClient(
+      RESOURCE,
+      patientId ? `?patient=${patientId}` : (search ? `?_count=10&code=${search}` : `?_count=10`)
+    );
     const items = Array.isArray(data.entry)
       ? data.entry.map((e: any) => normalizeAllergy(e.resource))
       : [];
@@ -48,11 +44,9 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-
   if (!id) {
     return NextResponse.json({ error: "Allergy ID is required" }, { status: 400 });
   }
-
   try {
     const body = await req.json();
     const updatedAllergy = await prisma.allergy.update({
@@ -68,11 +62,9 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-
   if (!id) {
     return NextResponse.json({ error: "Allergy ID is required" }, { status: 400 });
   }
-
   try {
     await prisma.allergy.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });

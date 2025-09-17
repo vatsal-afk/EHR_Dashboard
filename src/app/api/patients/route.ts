@@ -1,4 +1,3 @@
-// src/app/api/patients/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { apiClient } from "@/lib/apiClient";
 import { normalizePatient } from "@/lib/normalizers";
@@ -12,17 +11,17 @@ export async function GET(req: NextRequest) {
     const localPatients = await prisma.patient.findMany({
       where: { name: { contains: name } },
     });
-
+    
     if (localPatients.length > 0) {
       return NextResponse.json(localPatients);
     }
-
+    
     const data = await apiClient("Patient", name ? `?name=${name}` : "");
-    const fhirPatients = Array.isArray(data.entry)
+    const patients = Array.isArray(data.entry)
       ? data.entry.map((e: any) => normalizePatient(e.resource))
       : [];
 
-    return NextResponse.json(fhirPatients);
+    return NextResponse.json(patients);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
